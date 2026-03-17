@@ -1,0 +1,732 @@
+<!DOCTYPE html>  
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>AI Translator · RU ↔ EN</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=Manrope:wght@400;500;600;700;800&display=swap');
+
+  :root {
+    --bg: #0f1117;
+    --surface: #1a1d27;
+    --surface2: #22263a;
+    --border: rgba(255,255,255,0.08);
+    --accent: #5b8dee;
+    --accent2: #7c6fe0;
+    --ru: #e05a4a;
+    --en: #4eb8a0;
+    --text: #f0f2f8;
+    --muted: #7a7f9a;
+    --r: 14px;
+    --rs: 10px;
+  }
+
+  /* Telegram themes override */
+  body.tg-theme {
+    --bg: var(--tg-theme-bg-color, #0f1117);
+    --surface: var(--tg-theme-secondary-bg-color, #1a1d27);
+    --text: var(--tg-theme-text-color, #f0f2f8);
+    --muted: var(--tg-theme-hint-color, #7a7f9a);
+    --accent: var(--tg-theme-link-color, #5b8dee);
+    --btn: var(--tg-theme-button-color, #5b8dee);
+    --btn-text: var(--tg-theme-button-text-color, #fff);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html, body {
+    height: 100%;
+    overflow: hidden;
+  }
+
+  body {
+    font-family: 'Manrope', -apple-system, BlinkMacSystemFont, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* ── HEADER ── */
+  .header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 18px 10px;
+    flex-shrink: 0;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .logo {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    font-size: 15px;
+    font-weight: 700;
+    letter-spacing: -0.2px;
+  }
+
+  .logo-icon {
+    width: 32px; height: 32px;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    border-radius: 9px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 15px;
+  }
+
+  .badge {
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--accent);
+    background: rgba(91,141,238,0.13);
+    border: 1px solid rgba(91,141,238,0.22);
+    padding: 3px 8px;
+    border-radius: 20px;
+    letter-spacing: 0.4px;
+    text-transform: uppercase;
+  }
+
+  .icon-btn {
+    width: 32px; height: 32px;
+    border-radius: 8px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--muted);
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px;
+    transition: all 0.15s;
+  }
+  .icon-btn:hover { color: var(--text); border-color: rgba(255,255,255,0.18); }
+
+  /* ── LANG BAR ── */
+  .lang-bar {
+    display: flex;
+    align-items: center;
+    padding: 10px 18px;
+    gap: 6px;
+    flex-shrink: 0;
+  }
+
+  .lang-pill {
+    flex: 1;
+    padding: 9px 12px;
+    border-radius: var(--rs);
+    border: 1px solid var(--border);
+    background: var(--surface);
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--muted);
+    display: flex; align-items: center; justify-content: center;
+    gap: 7px;
+    transition: all 0.15s;
+  }
+  .lang-pill.active-ru { color: var(--ru); background: rgba(224,90,74,0.1); border-color: rgba(224,90,74,0.25); }
+  .lang-pill.active-en { color: var(--en); background: rgba(78,184,160,0.1); border-color: rgba(78,184,160,0.25); }
+
+  .swap-btn {
+    width: 34px; height: 34px;
+    border-radius: 50%;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--muted);
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 15px;
+    transition: transform 0.25s, color 0.15s;
+    flex-shrink: 0;
+  }
+  .swap-btn:hover { color: var(--accent); }
+  .swap-btn.spinning { transform: rotate(180deg); }
+
+  /* ── MAIN LAYOUT ── */
+  .panels {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    padding: 0 18px;
+    gap: 10px;
+    padding-bottom: 10px;
+  }
+
+  .panel {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    background: var(--surface);
+    border-radius: var(--r);
+    border: 1px solid var(--border);
+    overflow: hidden;
+    transition: border-color 0.2s;
+  }
+  .panel:focus-within { border-color: rgba(91,141,238,0.35); }
+
+  .panel-label {
+    padding: 10px 14px 6px;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.9px;
+    text-transform: uppercase;
+    color: var(--muted);
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    flex-shrink: 0;
+  }
+
+  .dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+  .dot-ru { background: var(--ru); }
+  .dot-en { background: var(--en); }
+
+  textarea {
+    flex: 1;
+    background: transparent;
+    border: none;
+    outline: none;
+    resize: none;
+    padding: 0 14px 8px;
+    font-family: 'Manrope', sans-serif;
+    font-size: 15px;
+    font-weight: 400;
+    line-height: 1.65;
+    color: var(--text);
+    caret-color: var(--accent);
+    min-height: 0;
+  }
+  textarea::placeholder { color: var(--muted); }
+
+  .panel-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 6px 10px 8px;
+    border-top: 1px solid var(--border);
+    gap: 6px;
+    flex-shrink: 0;
+  }
+
+  .char-count {
+    font-size: 10px;
+    color: var(--muted);
+    font-family: 'JetBrains Mono', monospace;
+    flex-shrink: 0;
+  }
+
+  .clear-btn {
+    background: none;
+    border: none;
+    color: var(--muted);
+    cursor: pointer;
+    font-size: 11px;
+    font-family: inherit;
+    padding: 3px 7px;
+    border-radius: 5px;
+    transition: all 0.15s;
+  }
+  .clear-btn:hover { color: var(--text); background: var(--surface2); }
+
+  /* ── TRANSLATE BTN ── */
+  .translate-btn {
+    flex-shrink: 0;
+    margin: 0 18px;
+    padding: 13px;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    border: none;
+    border-radius: var(--r);
+    color: white;
+    font-family: inherit;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: opacity 0.2s, transform 0.15s;
+    display: flex; align-items: center; justify-content: center;
+    gap: 7px;
+    letter-spacing: 0.2px;
+  }
+  .translate-btn:hover:not(:disabled) { opacity: 0.9; transform: translateY(-1px); }
+  .translate-btn:active:not(:disabled) { transform: translateY(0); }
+  .translate-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+
+  /* ── OUTPUT PANEL ── */
+  .output-text {
+    flex: 1;
+    padding: 0 14px 8px;
+    font-size: 15px;
+    line-height: 1.65;
+    color: var(--text);
+    overflow-y: auto;
+    min-height: 0;
+    word-break: break-word;
+  }
+
+  .placeholder {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 0 14px;
+    font-size: 13px;
+    font-style: italic;
+    color: var(--muted);
+  }
+
+  /* shimmer */
+  .shimmer { flex: 1; padding: 8px 14px; }
+  .sh { height: 13px; border-radius: 6px; background: linear-gradient(90deg, var(--surface2) 25%, rgba(91,141,238,0.07) 50%, var(--surface2) 75%); background-size: 200% 100%; animation: sh 1.3s infinite; margin-bottom: 9px; }
+  .sh:nth-child(1){width:88%} .sh:nth-child(2){width:70%} .sh:nth-child(3){width:50%}
+  @keyframes sh { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
+
+  /* output actions */
+  .out-actions { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+
+  .act-btn {
+    display: flex; align-items: center; gap: 4px;
+    padding: 5px 10px;
+    border-radius: 7px;
+    border: 1px solid var(--border);
+    background: var(--surface2);
+    color: var(--muted);
+    font-family: inherit;
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s;
+    white-space: nowrap;
+  }
+  .act-btn:hover { color: var(--text); border-color: rgba(255,255,255,0.18); }
+  .act-btn.ok { color: var(--en); border-color: rgba(78,184,160,0.3); }
+
+  .meta { font-size: 10px; color: var(--muted); font-family: 'JetBrains Mono', monospace; margin-left: auto; }
+
+  /* ── ERROR ── */
+  .err {
+    margin: 0 18px;
+    padding: 10px 12px;
+    background: rgba(224,90,74,0.08);
+    border: 1px solid rgba(224,90,74,0.2);
+    border-radius: var(--rs);
+    font-size: 12px;
+    color: var(--ru);
+    display: flex; align-items: flex-start; gap: 7px;
+    flex-shrink: 0;
+  }
+
+  /* ── MODAL ── */
+  .modal-wrap {
+    position: absolute;
+    inset: 0;
+    background: rgba(0,0,0,0.65);
+    display: flex;
+    align-items: flex-end;
+    z-index: 100;
+    padding: 16px;
+  }
+
+  .modal {
+    background: var(--surface);
+    border-radius: var(--r);
+    border: 1px solid var(--border);
+    padding: 22px;
+    width: 100%;
+  }
+
+  .modal h2 { font-size: 17px; font-weight: 700; margin-bottom: 6px; }
+  .modal p { font-size: 12px; color: var(--muted); line-height: 1.6; margin-bottom: 16px; }
+
+  .modal input {
+    width: 100%;
+    padding: 11px 13px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: var(--rs);
+    color: var(--text);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    outline: none;
+    margin-bottom: 10px;
+    transition: border-color 0.2s;
+  }
+  .modal input:focus { border-color: var(--accent); }
+
+  .modal-btn {
+    width: 100%;
+    padding: 12px;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    border: none;
+    border-radius: var(--rs);
+    color: #fff;
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+  }
+
+  .modal-link {
+    display: block;
+    text-align: center;
+    margin-top: 10px;
+    font-size: 11px;
+    color: var(--accent);
+    text-decoration: none;
+  }
+
+  /* ── TOAST ── */
+  .toast {
+    position: absolute;
+    bottom: 16px; left: 50%;
+    transform: translateX(-50%) translateY(8px);
+    background: var(--surface2);
+    border: 1px solid rgba(255,255,255,0.12);
+    color: var(--text);
+    font-size: 12px;
+    font-weight: 600;
+    padding: 9px 18px;
+    border-radius: 24px;
+    white-space: nowrap;
+    opacity: 0;
+    transition: opacity 0.2s, transform 0.2s;
+    pointer-events: none;
+    z-index: 200;
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  ::-webkit-scrollbar { width: 3px; }
+  ::-webkit-scrollbar-thumb { background: var(--surface2); border-radius: 2px; }
+</style>
+</head>
+<body>
+
+<!-- Header -->
+<div class="header">
+  <div class="logo">
+    <div class="logo-icon">🔤</div>
+    <span>AI Translator</span>
+  </div>
+  <div style="display:flex;align-items:center;gap:7px">
+    <span class="badge">Claude AI</span>
+    <button class="icon-btn" onclick="showSettings()" title="API Settings">⚙</button>
+  </div>
+</div>
+
+<!-- Language bar -->
+<div class="lang-bar">
+  <button class="lang-pill" id="srcPill" onclick="setDir('ru-en')">
+    🇷🇺 Русский
+  </button>
+  <button class="swap-btn" id="swapBtn" onclick="swapLangs()">⇄</button>
+  <button class="lang-pill" id="tgtPill" onclick="setDir('en-ru')">
+    English 🇬🇧
+  </button>
+</div>
+
+<!-- Panels -->
+<div class="panels">
+
+  <!-- Input -->
+  <div class="panel" id="inputPanel">
+    <div class="panel-label">
+      <span class="dot" id="inDot"></span>
+      <span id="inLabel">Russian · input</span>
+    </div>
+    <textarea id="ta" maxlength="2000" oninput="onInput()" onkeydown="onKey(event)"></textarea>
+    <div class="panel-footer">
+      <span class="char-count"><span id="cc">0</span>/2000</span>
+      <button class="clear-btn" onclick="clearAll()">✕ clear</button>
+    </div>
+  </div>
+
+  <!-- Translate button -->
+  <button class="translate-btn" id="tBtn" onclick="translate()">
+    <span id="tIcon">✦</span>
+    <span id="tLabel">Translate</span>
+    <span style="font-size:11px;opacity:0.6" id="tHint">Ctrl+↵</span>
+  </button>
+
+  <!-- Output -->
+  <div class="panel" id="outputPanel">
+    <div class="panel-label">
+      <span class="dot" id="outDot"></span>
+      <span id="outLabel">English · translation</span>
+    </div>
+    <div id="outBody">
+      <div class="placeholder">✦ Translation will appear here</div>
+    </div>
+    <div class="panel-footer" id="outFooter" style="display:none">
+      <div class="out-actions">
+        <button class="act-btn" id="copyBtn" onclick="copyTrans()">📋 Copy</button>
+        <button class="act-btn" onclick="shareChat()">📨 To chat</button>
+      </div>
+      <span class="meta" id="meta"></span>
+    </div>
+  </div>
+
+</div>
+
+<!-- Error -->
+<div class="err" id="errBox" style="display:none">
+  <span>⚠</span><span id="errMsg"></span>
+</div>
+
+<!-- API Key Modal -->
+<div class="modal-wrap" id="modal" style="display:none">
+  <div class="modal">
+    <h2>🔑 Anthropic API Key</h2>
+    <p>Enter your Claude API key. It's saved only in this browser session and never sent anywhere except Anthropic's servers.</p>
+    <input type="password" id="keyInput" placeholder="sk-ant-api03-..." />
+    <button class="modal-btn" onclick="saveKey()">Save & Start Translating</button>
+    <a href="https://console.anthropic.com/api-keys" class="modal-link" target="_blank">Get a free key at console.anthropic.com →</a>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ── STATE ──────────────────────────────────────────────────────
+let dir = 'ru-en';
+let apiKey = localStorage.getItem('ak') || '';
+let lastTrans = '';
+let busy = false;
+
+// ── TELEGRAM ───────────────────────────────────────────────────
+const TG = window.Telegram?.WebApp;
+if (TG) {
+  TG.ready();
+  TG.expand();
+  document.body.classList.add('tg-theme');
+  // Hide close confirmation — app is stateless
+  TG.enableClosingConfirmation && TG.enableClosingConfirmation();
+  // Use Telegram's main button as translate button on mobile
+  if (TG.MainButton) {
+    TG.MainButton.setText('TRANSLATE');
+    TG.MainButton.color = '#5b8dee';
+    TG.MainButton.textColor = '#ffffff';
+    TG.MainButton.onClick(() => translate());
+  }
+}
+
+// ── INIT ───────────────────────────────────────────────────────
+function init() {
+  if (!apiKey) { showSettings(); }
+  updateUI();
+  // Ctrl+Enter hint visibility — hide on small screens
+  if (window.innerWidth < 500) document.getElementById('tHint').style.display = 'none';
+}
+
+// ── DIRECTION ──────────────────────────────────────────────────
+function setDir(d) {
+  dir = d;
+  updateUI();
+}
+
+function updateUI() {
+  const sp = document.getElementById('srcPill');
+  const tp = document.getElementById('tgtPill');
+  const inDot  = document.getElementById('inDot');
+  const outDot = document.getElementById('outDot');
+  const inL    = document.getElementById('inLabel');
+  const outL   = document.getElementById('outLabel');
+  const ta     = document.getElementById('ta');
+
+  if (dir === 'ru-en') {
+    sp.className  = 'lang-pill active-ru';
+    tp.className  = 'lang-pill';
+    inDot.className  = 'dot dot-ru';
+    outDot.className = 'dot dot-en';
+    inL.textContent  = 'Russian · input';
+    outL.textContent = 'English · translation';
+    ta.placeholder   = 'Введите текст здесь…';
+  } else {
+    sp.className  = 'lang-pill';
+    tp.className  = 'lang-pill active-en';
+    inDot.className  = 'dot dot-en';
+    outDot.className = 'dot dot-ru';
+    inL.textContent  = 'English · input';
+    outL.textContent = 'Russian · translation';
+    ta.placeholder   = 'Type your text here…';
+  }
+}
+
+function swapLangs() {
+  const btn = document.getElementById('swapBtn');
+  btn.classList.add('spinning');
+  setTimeout(() => btn.classList.remove('spinning'), 260);
+
+  const prev = lastTrans;
+  const cur  = document.getElementById('ta').value;
+  dir = dir === 'ru-en' ? 'en-ru' : 'ru-en';
+  updateUI();
+  if (prev) {
+    document.getElementById('ta').value = prev;
+    onInput();
+    if (cur) translate();
+  }
+}
+
+function onInput() {
+  const v = document.getElementById('ta').value;
+  document.getElementById('cc').textContent = v.length;
+  // Show TG main button when there's text
+  if (TG?.MainButton) {
+    v.trim() ? TG.MainButton.show() : TG.MainButton.hide();
+  }
+}
+
+function onKey(e) {
+  if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') translate();
+}
+
+function clearAll() {
+  document.getElementById('ta').value = '';
+  onInput();
+  lastTrans = '';
+  document.getElementById('outBody').innerHTML = '<div class="placeholder">✦ Translation will appear here</div>';
+  document.getElementById('outFooter').style.display = 'none';
+  document.getElementById('errBox').style.display = 'none';
+}
+
+// ── TRANSLATE ──────────────────────────────────────────────────
+async function translate() {
+  if (busy) return;
+  const text = document.getElementById('ta').value.trim();
+  if (!text) { toast('Enter some text first'); return; }
+  if (!apiKey) { showSettings(); return; }
+
+  busy = true;
+  setBtn(true);
+  document.getElementById('errBox').style.display = 'none';
+  document.getElementById('outFooter').style.display = 'none';
+  document.getElementById('outBody').innerHTML = '<div class="shimmer"><div class="sh"></div><div class="sh"></div><div class="sh"></div></div>';
+
+  const srcLang = dir === 'ru-en' ? 'Russian' : 'English';
+  const tgtLang = dir === 'ru-en' ? 'English' : 'Russian';
+
+  const t0 = Date.now();
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true'
+      },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 1024,
+        system: `You are an expert ${srcLang}–${tgtLang} translator. Translate naturally and idiomatically — preserve tone (formal, casual, technical), use native expressions. Output ONLY the translation, nothing else.`,
+        messages: [{ role: 'user', content: `Translate this ${srcLang} text to ${tgtLang}:\n\n${text}` }]
+      })
+    });
+
+    if (!res.ok) {
+      const e = await res.json().catch(()=>({}));
+      throw new Error(e.error?.message || `HTTP ${res.status}`);
+    }
+    const data = await res.json();
+    const out = data.content?.[0]?.text?.trim() || '';
+    if (!out) throw new Error('Empty response');
+
+    lastTrans = out;
+    const ms = ((Date.now()-t0)/1000).toFixed(1);
+
+    document.getElementById('outBody').innerHTML =
+      `<div class="output-text">${esc(out)}</div>`;
+    document.getElementById('outFooter').style.display = 'flex';
+    document.getElementById('meta').textContent = `${ms}s · ${out.length}ch`;
+    resetCopyBtn();
+
+  } catch(err) {
+    document.getElementById('outBody').innerHTML = '<div class="placeholder">Translation failed</div>';
+    document.getElementById('errBox').style.display = 'flex';
+    document.getElementById('errMsg').textContent =
+      err.message.includes('401') ? 'Invalid API key — check settings ⚙' : err.message;
+  }
+
+  busy = false;
+  setBtn(false);
+}
+
+function setBtn(loading) {
+  const btn = document.getElementById('tBtn');
+  btn.disabled = loading;
+  document.getElementById('tIcon').textContent  = loading ? '⟳' : '✦';
+  document.getElementById('tLabel').textContent = loading ? 'Translating…' : 'Translate';
+  if (TG?.MainButton) {
+    loading ? TG.MainButton.showProgress() : TG.MainButton.hideProgress?.();
+  }
+}
+
+function esc(t) {
+  return t.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>');
+}
+
+// ── ACTIONS ────────────────────────────────────────────────────
+function copyTrans() {
+  if (!lastTrans) return;
+  navigator.clipboard.writeText(lastTrans).then(() => {
+    const btn = document.getElementById('copyBtn');
+    btn.textContent = '✓ Copied!';
+    btn.className = 'act-btn ok';
+    setTimeout(resetCopyBtn, 2000);
+  });
+}
+
+function resetCopyBtn() {
+  const btn = document.getElementById('copyBtn');
+  if (btn) { btn.textContent = '📋 Copy'; btn.className = 'act-btn'; }
+}
+
+function shareChat() {
+  if (!lastTrans) return;
+  if (TG) {
+    TG.sendData(JSON.stringify({
+      type: 'translation',
+      source: document.getElementById('ta').value.trim(),
+      translation: lastTrans,
+      direction: dir
+    }));
+  } else {
+    copyTrans();
+    toast('Copied to clipboard');
+  }
+}
+
+// ── SETTINGS ───────────────────────────────────────────────────
+function showSettings() {
+  document.getElementById('modal').style.display = 'flex';
+  if (apiKey) document.getElementById('keyInput').value = apiKey;
+  setTimeout(() => document.getElementById('keyInput').focus(), 80);
+}
+
+function saveKey() {
+  const k = document.getElementById('keyInput').value.trim();
+  if (!k || !k.startsWith('sk-')) { toast('Enter a valid API key'); return; }
+  apiKey = k;
+  localStorage.setItem('ak', k);
+  document.getElementById('modal').style.display = 'none';
+  toast('API key saved ✓');
+}
+
+document.getElementById('modal').addEventListener('click', e => {
+  if (e.target === document.getElementById('modal') && apiKey)
+    document.getElementById('modal').style.display = 'none';
+});
+
+// ── TOAST ──────────────────────────────────────────────────────
+function toast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2400);
+}
+
+init();
+</script>
+</body>
+</html>
